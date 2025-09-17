@@ -76,7 +76,7 @@ The classification model is based on **LSTM with Attention**:
 ## ⚙️ Installation
 ```bash
 # Clone repository
-git clone https://github.com/yourname/depression-detection-erisk2024.git
+git clone https://github.com/phmthaj/depression-detection-erisk2024.git
 cd depression-detection-erisk2024
 
 # Create environment
