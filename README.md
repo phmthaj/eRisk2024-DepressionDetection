@@ -19,8 +19,7 @@ The goal of Task 1 is to determine whether a given **text segment** (sentence) i
 ├── dataset/                # Datasets
 │   ├── dataset2024.csv  # Final processed dataset (~15k samples)
 │   └── majority_erisk_2024.csv  # Original labels
-├── model_jupyter/              # Saved checkpoints
-├── notebooks/           # Experiments & analysis
+├── model_jupyter/              # model trained in jupyter
 ├── src/                 # Source code
 │   ├── dataset.py       # Dataset class & DataLoader
 │   ├── model.py         # LSTM + Attention model
@@ -37,6 +36,7 @@ The goal of Task 1 is to determine whether a given **text segment** (sentence) i
 │ ├── embedding.py # Train Word2Vec embeddings
 │ └── train_lstm_v2.py # Train LSTM model
 └── README.md
+|__ requirement.txt
 ```
 
 ---
