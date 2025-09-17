@@ -13,13 +13,7 @@ QUERIES_21 = [
 ]
 
 def parse_trec_file(trec_path):
-    """
-    Parser an toàn cho .trec:
-    - Bắt <DOC> ... </DOC>
-    - Lấy <DOCNO>... </DOCNO> ở bất kỳ vị trí (inline cũng được)
-    - Gom TẤT CẢ các đoạn <TEXT> ... </TEXT> (inline hoặc multi-line)
-    Trả về generator (doc_id, text)
-    """
+
     doc_open = False
     doc_id = None
     text_parts = []
@@ -31,7 +25,6 @@ def parse_trec_file(trec_path):
             text = " ".join(t.strip() for t in text_parts if t.strip())
             if text:
                 yield (doc_id.strip(), text)
-        # reset
         doc_id = None
         text_parts = []
 
@@ -39,7 +32,6 @@ def parse_trec_file(trec_path):
         for raw in f:
             line = raw.rstrip("\n")
 
-            # Mở / đóng DOC
             if "<DOC>" in line:
                 doc_open = True
                 doc_id = None
@@ -48,7 +40,6 @@ def parse_trec_file(trec_path):
                 continue
 
             if "</DOC>" in line:
-                # kết thúc 1 doc
                 yield from push()
                 doc_open = False
                 capture_text = False
@@ -57,16 +48,13 @@ def parse_trec_file(trec_path):
             if not doc_open:
                 continue
 
-            # Lấy DOCNO (inline)
             if "<DOCNO>" in line:
                 m = re.search(r"<DOCNO>\s*(.*?)\s*</DOCNO>", line)
                 if m:
                     doc_id = m.group(1).strip()
                 else:
-                    # DOCNO mở ở dòng này, đóng ở dòng sau (ít gặp)
                     content = []
                     if not line.strip().endswith("</DOCNO>"):
-                        # thu tiếp cho đến khi gặp </DOCNO>
                         for raw2 in f:
                             l2 = raw2.rstrip("\n")
                             content.append(l2.strip())
@@ -77,16 +65,13 @@ def parse_trec_file(trec_path):
                         if m2:
                             doc_id = m2.group(1).strip()
 
-            # Bắt TEXT: xử lý cả inline <TEXT> ... </TEXT>
             if "<TEXT>" in line:
-                # inline case
                 if "</TEXT>" in line:
                     m = re.search(r"<TEXT>(.*?)</TEXT>", line, flags=re.DOTALL)
                     if m:
                         text_parts.append(m.group(1).strip())
                     capture_text = False
                 else:
-                    # mở capture, lấy phần sau <TEXT> nếu có
                     after = line.split("<TEXT>", 1)[1]
                     if after.strip():
                         text_parts.append(after.strip())
@@ -95,7 +80,6 @@ def parse_trec_file(trec_path):
 
             if capture_text:
                 if "</TEXT>" in line:
-                    # lấy phần trước </TEXT>
                     before = line.split("</TEXT>", 1)[0]
                     if before.strip():
                         text_parts.append(before.strip())
@@ -105,10 +89,7 @@ def parse_trec_file(trec_path):
                         text_parts.append(line.strip())
 
 def parse_trec_dir(trec_dir):
-    """
-    Parse toàn bộ .trec trong thư mục (không load all vào RAM)
-    Trả về DataFrame (doc_id, text)
-    """
+   
     all_rows = []
     for fname in os.listdir(trec_dir):
         if fname.lower().endswith(".trec"):
@@ -120,21 +101,13 @@ def parse_trec_dir(trec_dir):
     return df
 
 def load_labels_flex(path):
-    """
-    Đọc labels linh hoạt:
-    - Nếu là CSV có header ('doc_id', 'query', 'label' ...) -> giữ nguyên
-    - Nếu là TSV không header 4 cột (topic, query_id, doc_id, label) -> thêm header + map query_id -> query text
-    - Chuẩn hóa: đảm bảo có cột 'doc_id', 'label', và 'query'
-    """
-    # thử auto-detect delimiter
+   
     try:
         labels = pd.read_csv(path)
     except Exception:
         labels = pd.read_csv(path, sep=None, engine="python")
 
-    # Case: đọc ra 1 cột duy nhất -> khả năng TSV không header
     if labels.shape[1] == 1:
-        # thử đọc lại là TSV không header
         labels = pd.read_csv(path, sep="\t", header=None,
                              names=["topic", "query_id", "doc_id", "label"])
 
@@ -163,10 +136,8 @@ def load_labels_flex(path):
     if "label" not in labels.columns:
         raise ValueError("Không tìm thấy cột label (hoặc relevant) trong file nhãn.")
 
-    # Ép kiểu, strip
     labels["doc_id"] = labels["doc_id"].astype(str).str.strip()
     labels["query"]  = labels["query"].astype(str).str.strip()
-    # label -> int nếu có thể
     try:
         labels["label"] = labels["label"].astype(int)
     except Exception:
@@ -175,33 +146,26 @@ def load_labels_flex(path):
     return labels
 
 def build_dataset(trec_dir: str, label_file: str, output_file: str):
-    # Parse TREC
     docs_df = parse_trec_dir(trec_dir)
     print(f"[INFO] Parsed total {len(docs_df)} docs from TREC")
     if not docs_df.empty:
         print("[DEBUG] sample TREC doc_ids:", docs_df["doc_id"].head().tolist())
 
-    # Load labels (linh hoạt)
     labels_df = load_labels_flex(label_file)
     print(f"[INFO] Loaded {len(labels_df)} labels from {label_file}")
     print("[DEBUG] sample label doc_ids:", labels_df["doc_id"].head().tolist())
 
-    # Chuẩn hóa khóa (đảm bảo string, strip)
     docs_df["doc_id"] = docs_df["doc_id"].astype(str).str.strip()
 
-    # Join: giữ nguyên thứ tự labels (left), ghép text từ TREC (right)
     merged = labels_df.merge(docs_df, on="doc_id", how="left")
 
-    # Thống kê missing
     missing = merged["text"].isna().sum()
     print(f"[INFO] Matched with text: {len(merged) - missing} / {len(merged)}")
     if missing > 0:
         print(f"[WARN] {missing} rows không tìm thấy text trong TREC.")
-        # In vài ví dụ không match để bạn so sánh doc_id
         miss_ids = merged.loc[merged["text"].isna(), "doc_id"].head().tolist()
         print("[DEBUG] ví dụ doc_id bị miss:", miss_ids)
 
-    # Lưu
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     merged.to_csv(output_file, index=False, encoding="utf-8")
     print(f"[INFO] Saved dataset to {output_file}")
