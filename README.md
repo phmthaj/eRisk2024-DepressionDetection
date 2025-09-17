@@ -20,12 +20,15 @@ The goal of Task 1 is to determine whether a given **text segment** (sentence) i
 │   ├── dataset2024.csv  # Final processed dataset (~15k samples)
 │   └── majority_erisk_2024.csv  # Original labels
 ├── model_jupyter/              # model trained in jupyter
-├── src/                 # Source code
-│   ├── dataset.py       # Dataset class & DataLoader
-│   ├── model.py         # LSTM + Attention model
-│   ├── train.py         # Training pipeline
-│   ├── evaluate.py      # Evaluation metrics
-│   └── utils.py         # Preprocessing utilities
+── src/                  #
+│   ├── EDA.ipynb               # EDA
+│   ├── data_cleaning_1.ipynb   # cleaning and tokenize
+│   ├── embedding.ipynb         # train/load Word2Vec
+│   ├── RNN_model.ipynb         # LSTM training 
+│   ├── Evaluate.ipynb          # Evaluate on 2025set
+│   ├── Test_on_2025.ipynb      # test on 2025
+│   └── compressing_file.ipyn   # Combining TREC
+|      
 ├── data/ # Data storage
 │ ├── raw/ # Raw TREC + label files
 │ ├── parsed/ # Parsed + cleaned datasets
