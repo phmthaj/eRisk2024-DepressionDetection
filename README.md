@@ -16,10 +16,10 @@ The goal of Task 1 is to determine whether a given **text segment** (sentence) i
 
 ## 📂 Project Structure
 ```
-├── data/                # Datasets
+├── dataset/                # Datasets
 │   ├── dataset2024.csv  # Final processed dataset (~15k samples)
 │   └── majority_erisk_2024.csv  # Original labels
-├── models/              # Saved checkpoints
+├── model_jupyter/              # Saved checkpoints
 ├── notebooks/           # Experiments & analysis
 ├── src/                 # Source code
 │   ├── dataset.py       # Dataset class & DataLoader
@@ -27,6 +27,15 @@ The goal of Task 1 is to determine whether a given **text segment** (sentence) i
 │   ├── train.py         # Training pipeline
 │   ├── evaluate.py      # Evaluation metrics
 │   └── utils.py         # Preprocessing utilities
+├── data/ # Data storage
+│ ├── raw/ # Raw TREC + label files
+│ ├── parsed/ # Parsed + cleaned datasets
+│ └── models/ # Trained embeddings & LSTM models
+├── Scripts/ # Pipeline scripts
+│ ├── parsed.py # Join TREC + labels → final_dataset.csv
+│ ├── text_cleaning.py # Preprocess & tokenize text
+│ ├── embedding.py # Train Word2Vec embeddings
+│ └── train_lstm_v2.py # Train LSTM model
 └── README.md
 ```
 
@@ -47,7 +56,7 @@ The goal of Task 1 is to determine whether a given **text segment** (sentence) i
 
 ## 🧹 Preprocessing
 Before training, text samples are normalized with:
-- Lowercasing (`text.lower()`)
+- Lowercasing 
 - Contraction expansion (e.g., *"can't"* → *"cannot"*)  
 - Lemmatization (words reduced to their base form)  
 - Tokenization (split into word tokens)  
@@ -58,7 +67,7 @@ Before training, text samples are normalized with:
 The classification model is based on **LSTM with Attention**:
 
 - **Embedding Layer** → transforms tokens into dense vectors  
-- **BiLSTM Encoder** → captures contextual information  
+- **LSTM Encoder** → captures contextual information  
 - **Attention Mechanism** → focuses on words most relevant to the query  
 - **Classifier** → outputs relevance score (`0/1`)  
 
@@ -81,43 +90,56 @@ pip install -r requirements.txt
 
 ---
 
-## 🚀 Training & Evaluation
+## 🚀 Training 
 
-### Training
+You need to put the .Trec file from erisk2024.zip (get by this link https://drive.google.com/drive/folders/13SVrWMuZxyqLjPFREkNJO3seB_SYYjFS) and put it in data/raw file in order for the pipeline to work. 
+
+Then run the pipeline step by step:
+
 ```bash
-python src/train.py --data data/dataset2024.csv --epochs 20 --batch_size 64 --lr 1e-3
-```
+# Step 1: Parse TREC + Labels
+python Scripts/parsed.py --trec_dir data/raw/erisk2024 \
+  --label_file data/raw/majority_erisk_24_clean.csv \
+  --output_file data/parsed/final_dataset.csv
 
-### Evaluation
-```bash
-python src/evaluate.py --model models/bilstm_attention.pt
-```
+# Step 2: Clean Text
+python Scripts/text_cleaning.py --input_file data/parsed/final_dataset.csv \
+  --output_file data/parsed/clean_dataset.csv
 
-### Prediction
-```python
-from src.model import BiLSTMWithAttention
-from src.utils import predict_one
+# Step 3: Train Word2Vec Embeddings
+python Scripts/embedding.py --input_file data/parsed/clean_dataset.csv \
+  --model_file data/models/word2vec.model \
+  --vector_file data/models/embeddings.pkl
 
-print(predict_one("I feel so empty and hopeless..."))
-# Output: 1 (relevant to depression symptom)
-```
+# Step 4: Train LSTM Model
+python Scripts/train_lstm_v2.py --clean_file data/parsed/clean_dataset.csv \
+  --embedding_file data/models/embeddings.pkl \
+  --model_output data/models/lstm_v2.pt \
+  --epochs 10 --batch_size 64
 
----
+You can change epochs size. After training, the model will be  in the file data/models.
+
+📊 Pipeline Diagram
+flowchart TD
+  A[Raw TREC files] --> B[parsed.py]
+  B -->|Merge with labels| C[final_dataset.csv]
+  C --> D[text_cleaning.py]
+  D --> E[clean_dataset.csv]
+  E --> F[embedding.py]
+  F --> G[embeddings.pkl]
+  G --> H[train_lstm_v2.py]
+  H --> I[lstm_v2.pt]
+
 
 ## 📊 Results (Example)
-| Model              | Accuracy | F1-score | MAP  |
-|--------------------|----------|----------|------|
-| BiLSTM             | 0.82     | 0.80     | 0.74 |
-| BiLSTM + Attention | 0.85     | 0.83     | 0.78 |
+| Model            | Accuracy | F1-score |
+|------------------|----------|----------|
+| LSTM + Attention | 0.88     | 0.87     |
 
 ---
 
 ## 📚 References
 - [CLEF eRisk 2024 Lab Notebook](https://ceur-ws.org/Vol-3740/paper-72.pdf)  
-- [Attention Is All You Need (Vaswani et al., 2017)](https://arxiv.org/abs/1706.03762)  
 - [PyTorch Documentation](https://pytorch.org/docs/stable/index.html)  
 
----
 
-## 📜 License
-This project is licensed under the MIT License.

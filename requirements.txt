@@ -8,3 +8,7 @@ tqdm>=4.65.0
 spacy>=3.5.0
 matplotlib>=3.7.0
 jupyter>=1.0.0
+gensim>=4.3.0
+contractions>=0.1.73
+regex>=2023.6.3
+
